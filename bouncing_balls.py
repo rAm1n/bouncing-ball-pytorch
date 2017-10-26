@@ -12,12 +12,13 @@
 
 
 from pylab import *
-
+import numpy as np
 
 
 FRICTION = False # whether there is friction in the system
 NUM_BALLS = 2  # num of balls in the simulation
 SIZE=10
+
 
 
 
