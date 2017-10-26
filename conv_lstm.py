@@ -127,14 +127,14 @@ class CLSTM(nn.Module):
  #		return next_hidden, current_input
 
 		hidden_c = hidden_state[0]
-		out = [] 
+		out = []
 		for t in xrange(seq_len):
 			output, hidden_c = self.cell_list[0](current_input[t,...],hidden_c)
 			out.append(output)
-		next_hidden.append(hidden_c)	
+		next_hidden.append(hidden_c)
 
 		out = torch.cat(out,0).view(current_input.size(0), *out[0].size())
-		return out,next_hidden
+		return out,hidden_c
 
 	def init_hidden(self,batch_size):
 		init_states=[]#this is a list of tuples
