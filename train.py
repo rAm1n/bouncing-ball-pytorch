@@ -23,6 +23,7 @@ num_balls = 2
 max_step = 200000
 seq_start = 5
 lr = .001
+keep_prob = 0.8
 dtype = torch.cuda.FloatTensor
 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
@@ -35,14 +36,13 @@ def generate_bouncing_ball_sample(batch_size, seq_length, shape, num_balls):
 
 
 def train():
-	global model, input,dat , out,output
 	model = CLSTM(shape, inp_chans, filter_size, num_features,nlayers)
 	model.apply(weights_init)
 	model = model.cuda()
 
 	crit = nn.MSELoss()
 	optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
+	drop = nn.Dropout(keep_prob)
 	hidden_state = model.init_hidden(batch_size)
 
 
@@ -51,8 +51,9 @@ def train():
 	for step in xrange(max_step):
 		dat = generate_bouncing_ball_sample(batch_size, seq_len, shape[0], num_balls)
 		input = Variable(dat.cuda(), requires_grad=True)
+		input = drop(input)
 		target = Variable(dat.cuda(), requires_grad=False)
-		# hidden_state = model.init_hidden(batch_size)
+		hidden_state = model.init_hidden(batch_size)
 
 		output = list()
 		for i in xrange(input.size(1)-1):
@@ -77,20 +78,21 @@ def train():
 
 		if step%1000 == 0:
 			# make video
+			print(step)
 			print("now generating video!")
 			video = cv2.VideoWriter()
-			success = video.open("generated_conv_lstm_video.mov", fourcc, 4, (180, 180), True)
-			# hidden_state = model.init_hidden(batch_size)
+			success = video.open("generated_conv_lstm_video_{0}.avi".format(step), fourcc, 4, (180, 180), True)
+			hidden_state = model.init_hidden(batch_size)
+			output = list()
 			for i in xrange(50):
 				if i < seq_start:
 					out , hidden_c = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
 				else:
 					out , hidden_c = model(out, hidden_state)
 				output.append(out)
-			ims = torch.cat(output,1)
-			ims = ims[0][0]
-			print(ims.shape)
-			for i in xrange(50 - seq_start):
+			ims = torch.cat(output,1).permute(0,1,4,3,2)
+			ims = ims[0].data.cpu().numpy()
+			for i in xrange(50):
 				x_1_r = np.uint8(np.maximum(ims[i,:,:,:], 0) * 255)
 				new_im = cv2.resize(x_1_r, (180,180))
 				video.write(new_im)
