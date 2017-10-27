@@ -53,7 +53,6 @@ class Custom_CLSTM_cell(nn.Module):
 	def forward(self, input, hidden_state):
 		hidden,c = hidden_state #hidden and c are images with several channels
 
-
 		encoding = self.encoding(input)
 		combined = torch.cat((encoding, hidden), 1) #concatenate in the channels
 		B = self.CLSTM(combined)
@@ -108,7 +107,7 @@ class CLSTM(nn.Module):
 			input is the tensor of shape seq_len,Batch,Chans,H,W
 
 		"""
-		current_input = input.transpose(0, 1)#now is seq_len,B,C,H,W
+		current_input = input.transpose(0, 1) #now is seq_len,B,C,H,W
 		#current_input=input
 		next_hidden=[]#hidden states(h and c)
 		seq_len=current_input.size(0)
@@ -132,9 +131,8 @@ class CLSTM(nn.Module):
 			output, hidden_c = self.cell_list[0](current_input[t,...],hidden_c)
 			out.append(output)
 		next_hidden.append(hidden_c)
-
-		out = torch.cat(out,0).view(current_input.size(0), *out[0].size())
-		return out,hidden_c
+		out = torch.cat(out,0).view(current_input.size(0), *out[0].size()).transpose(0,1)
+		return out, next_hidden
 
 	def init_hidden(self,batch_size):
 		init_states=[]#this is a list of tuples

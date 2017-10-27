@@ -1,9 +1,9 @@
 
-import torchvision
 import torch
 from torch import autograd
 from torch.autograd import Variable
 import torch.nn.functional as F
+import torch.nn as nn
 import bouncing_balls as b
 from conv_lstm import CLSTM, weights_init
 import numpy as np
@@ -12,7 +12,6 @@ import time
 
 
 
-fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v')
 num_features=10
 filter_size=3
 batch_size=4
@@ -24,13 +23,14 @@ num_balls = 2
 max_step = 200000
 seq_start = 5
 lr = .001
-
+dtype = torch.cuda.FloatTensor
+fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
 def generate_bouncing_ball_sample(batch_size, seq_length, shape, num_balls):
-	dat = np.zeros((batch_size, seq_length, shape, shape, 3))
+	dat = np.zeros((batch_size, seq_length, shape, shape, 3), dtype=np.float32)
 	for i in xrange(batch_size):
 		dat[i, :, :, :, :] = b.bounce_vec(32, num_balls, seq_length)
-	return dat
+	return torch.from_numpy(dat).permute(0,1,4,2,3)
 
 
 
@@ -76,26 +76,40 @@ def generate_bouncing_ball_sample(batch_size, seq_length, shape, num_balls):
 
 
 def train():
-	input = Variable(torch.zeros(batch_size,seq_len,inp_chans,shape[0],shape[1])).cuda()
-	hidden_state = None
-
+	global model, input,dat , out,output
 	model = CLSTM(shape, inp_chans, filter_size, num_features,nlayers)
 	model.apply(weights_init)
-	model.cuda()
-	crit = nn.L1Loss()
+	model = model.cuda()
+
+        crit = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)		
+
+#	input = Variable(torch.zeros(batch_size,seq_len,inp_chans,shape[0],shape[1]).type(dtype).cuda())
+	hidden_state = model.init_hidden(batch_size)
+
 
 	start = time.time()
+	l = list()
 	for step in xrange(max_step):
-
 		dat = generate_bouncing_ball_sample(batch_size, seq_len, shape[0], num_balls)
-		network_input = dat.tranpose(0,1)[:seq_len-1]
-		input.data = torch.from_numpy(network_input)
-
-		out , hidden_c = model(input, hidden_state)
-		print(out[:,seq_len+1:,:,:,:].size())
-		print(dat[:,seq_len:,:,:,:].shape)
-		loss = crit(out[:,seq_len+1:,:,:,:],dat[:,seq_len:,:,:,:])
-		crit.backward()
+		input = Variable(dat.cuda(), requires_grad=True)
+		target = Variable(dat.cuda(), requires_grad=False)
+ 	
+		output = list()
+		for i in xrange(input.size(1)-1):
+			if i < seq_start:
+				out , hidden_c = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
+			else:
+				out , hidden_c = model(out, hidden_state)
+			output.append(out)
+		output = torch.cat(output,1)
+		loss = crit(output[:,seq_start:,:,:,:], target[:,seq_start+1:,:,:,:])
+	
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
+		l.append(loss.data[0])
+		
 
 
 		# if step%100 == 0 and step != 0:
