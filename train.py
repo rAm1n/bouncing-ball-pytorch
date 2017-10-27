@@ -84,7 +84,7 @@ def train():
 			success = video.open("generated_conv_lstm_video_{0}.avi".format(step), fourcc, 4, (180, 180), True)
 			hidden_state = model.init_hidden(batch_size)
 			output = list()
-			for i in xrange(50):
+			for i in xrange(25):
 				if i < seq_start:
 					out , hidden_c = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
 				else:
@@ -92,7 +92,7 @@ def train():
 				output.append(out)
 			ims = torch.cat(output,1).permute(0,1,4,3,2)
 			ims = ims[0].data.cpu().numpy()
-			for i in xrange(50):
+			for i in xrange(5,25):
 				x_1_r = np.uint8(np.maximum(ims[i,:,:,:], 0) * 255)
 				new_im = cv2.resize(x_1_r, (180,180))
 				video.write(new_im)
