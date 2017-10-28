@@ -36,6 +36,7 @@ def generate_bouncing_ball_sample(batch_size, seq_length, shape, num_balls):
 
 
 def train():
+	global hidden_state
 	model = CLSTM(shape, inp_chans, filter_size, num_features,nlayers)
 	model.apply(weights_init)
 	model = model.cuda()
@@ -58,9 +59,9 @@ def train():
 		output = list()
 		for i in xrange(input.size(1)-1):
 			if i < seq_start:
-				out , hidden_c = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
+				out , hidden_state = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
 			else:
-				out , hidden_c = model(out, hidden_state)
+				out , hidden_state = model(out, hidden_state)
 			output.append(out)
 
 		output = torch.cat(output,1)
@@ -86,9 +87,9 @@ def train():
 			output = list()
 			for i in xrange(25):
 				if i < seq_start:
-					out , hidden_c = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
+					out , hidden_state = model(input[:,i,:,:,:].unsqueeze(1), hidden_state)
 				else:
-					out , hidden_c = model(out, hidden_state)
+					out , hidden_state = model(out, hidden_state)
 				output.append(out)
 			ims = torch.cat(output,1).permute(0,1,4,3,2)
 			ims = ims[0].data.cpu().numpy()
